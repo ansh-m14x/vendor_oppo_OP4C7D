@@ -11,43 +11,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Vendor Tree Makefiles
+      - name: Checkout Repository Layout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.VENDOR_PUSH_TOKEN }} # Uses a repository secret for authorization
+        # Removed the manual token requirement here to prevent the checkout error!
 
       - name: Download Blobs from GitHub Release
         run: |
-          echo "[+] Downloading proprietary blobs..."
+          echo "[+] Downloading proprietary vendor zip archive..."
           curl -L -o vendor_tree.zip "https://github.com/stanlysilas/OppoA31-OP4C7D-vendor-tree/releases/download/vendor-tree/vendor_tree.zip"
 
-          echo "[+] Extracting nested archive layout..."
+          echo "[+] Unzipping archive layout..."
           unzip -q vendor_tree.zip
 
-          echo "[+] Moving proprietary files to the repository root..."
-          if [ -d "vendor/oppo/OP4C7D/proprietary" ]; then
-            mv vendor/oppo/OP4C7D/proprietary .
-            echo "[SUCCESS] Proprietary folder shifted to workspace root."
+          echo "[+] Extracting everything (Makefiles + Blobs) to repository root..."
+          if [ -d "vendor/oppo/OP4C7D" ]; then
+            # This copies everything inside the zip's nested target folder directly into your root
+            cp -r vendor/oppo/OP4C7D/* .
+            echo "[SUCCESS] Main tree structures and blobs copied over seamlessly."
           else
-            echo "[ERROR] Expected zip structure was missing!" && exit 1
+            echo "[ERROR] ZIP path target structure structure matching failed!" && exit 1
           fi
 
-          echo "[+] Cleaning up directory structure scraps..."
+          echo "[+] Cleaning up workspace archive scraps..."
           rm -rf vendor/
           rm vendor_tree.zip
 
-      - name: Commit and Push Blobs back to Repo
+      - name: Commit and Push to Repository
         run: |
           git config --global user.name "ansh-m14x"
           git config --global user.email "ansh-m14x@users.noreply.github.com"
           
-          # Force add files even if they are in .gitignore
-          git add -f proprietary/
+          # Stage all files, including hidden items and untracked folders
+          git add -A
           
-          # Only commit if changes exist
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes found to update."
           else
-            git commit -m "OP4C7D: Automatically populate proprietary blobs via workflow"
-            git push origin main
+            git commit -m "OP4C7D: Populate complete vendor tree makefiles and blobs from source"
+            # Using the default system token explicitly for the push action
+            git push "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" main
           fi
