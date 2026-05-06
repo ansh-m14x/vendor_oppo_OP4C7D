@@ -1,0 +1,47 @@
+name: Fetch and Extract Proprietary Blobs
+
+on:
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+  push:
+    branches:
+      - main
+
+jobs:
+  prepare-vendor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Vendor Tree Makefiles
+        uses: actions/checkout@v4
+
+      - name: Download Blobs from GitHub Release
+        run: |
+          echo "[+] Downloading proprietary blobs..."
+          curl -L -o vendor_tree.zip "https://github.com/stanlysilas/OppoA31-OP4C7D-vendor-tree/releases/download/vendor-tree/vendor_tree.zip"
+
+          echo "[+] Extracting nested archive layout..."
+          unzip -q vendor_tree.zip
+
+          echo "[+] Moving proprietary files to the repository root..."
+          if [ -d "vendor/oppo/OP4C7D/proprietary" ]; then
+            mv vendor/oppo/OP4C7D/proprietary .
+            echo "[SUCCESS] Proprietary folder shifted to workspace root."
+          else
+            echo "[ERROR] Expected zip structure was missing!" && exit 1
+          fi
+
+          echo "[+] Cleaning up directory structure scraps..."
+          rm -rf vendor/
+          rm vendor_tree.zip
+          echo "[+] Vendor workspace successfully populated!"
+
+      - name: Verify Tree Structure
+        run: |
+          ls -la
+          if [ -d "proprietary" ]; then
+            echo "[SUCCESS] Proprietary directory verified at root layout."
+            ls -la proprietary/
+          else
+            echo "[ERROR] Extraction check failed!" && exit 1
+          fi
+
