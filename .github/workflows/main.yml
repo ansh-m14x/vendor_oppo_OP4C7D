@@ -1,7 +1,7 @@
 name: Fetch and Extract Proprietary Blobs
 
 on:
-  workflow_dispatch: # Allows manual triggering from the Actions tab
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout Vendor Tree Makefiles
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.VENDOR_PUSH_TOKEN }} # Uses a repository secret for authorization
 
       - name: Download Blobs from GitHub Release
         run: |
@@ -33,15 +35,19 @@ jobs:
           echo "[+] Cleaning up directory structure scraps..."
           rm -rf vendor/
           rm vendor_tree.zip
-          echo "[+] Vendor workspace successfully populated!"
 
-      - name: Verify Tree Structure
+      - name: Commit and Push Blobs back to Repo
         run: |
-          ls -la
-          if [ -d "proprietary" ]; then
-            echo "[SUCCESS] Proprietary directory verified at root layout."
-            ls -la proprietary/
+          git config --global user.name "ansh-m14x"
+          git config --global user.email "ansh-m14x@users.noreply.github.com"
+          
+          # Force add files even if they are in .gitignore
+          git add -f proprietary/
+          
+          # Only commit if changes exist
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
           else
-            echo "[ERROR] Extraction check failed!" && exit 1
+            git commit -m "OP4C7D: Automatically populate proprietary blobs via workflow"
+            git push origin main
           fi
-
